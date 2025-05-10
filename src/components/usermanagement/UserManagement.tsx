@@ -1,0 +1,641 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useCurrentUser } from "@/hooks/auth";
+import { useCurrentRole } from "@/hooks/auth";
+import { format } from "date-fns";
+import { ArrowLeft, Download, Plus, Search, Mail, ChevronLeft, ChevronRight, KeyRound } from "lucide-react";
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "@/hooks/use-toast";
+// import { toast } from "@/components/ui/use-toast";
+
+// Define the user interface to match the API response
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: string | null;
+  phone: string | null;
+  phoneVerified: string | null;
+  role: "ADMIN" | "USER";
+  organizationId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Define pagination interface
+interface Pagination {
+  total: number;
+  totalPages: number;
+  currentPage: number;
+  limit: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
+// API response interface
+interface UsersResponse {
+  users: User[];
+  pagination: Pagination;
+}
+
+// Interface for organization
+interface Organization {
+  id: string;
+  name: string;
+  code: string;
+  description?: string;
+  isActive: boolean;
+}
+
+export function UserManagement() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [organizationId, setOrganizationId] = useState<string>("61e8458a-8f55-40c8-8adc-a78b744063c5");
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const router = useRouter();
+  const user = useCurrentUser();
+  const role = useCurrentRole();
+  console.log("users",users);
+  
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const pageSize = 50;
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Fetch users data with pagination
+  const fetchUsers = async (page = 1, search = "") => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      let url = `/api/users?page=${page}&limit=${pageSize}`;
+      
+      // Add search parameter if provided
+      if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+      }
+      
+      // Add organization filter if not admin
+      if (organizationId) {
+        url += `&organizationId=${organizationId}`;
+      }
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch users");
+      }
+      
+      const data: UsersResponse = await response.json();
+      setUsers(data.users);
+      
+      // Update pagination information
+      if (data.pagination) {
+        setTotalPages(data.pagination.totalPages);
+        setTotalUsers(data.pagination.total);
+        setCurrentPage(data.pagination.currentPage);
+      }
+    } catch (error: any) {
+      console.error("Error fetching users:", error);
+      setError(error.message || "Failed to load users. Please try again later.");
+    } finally {
+      setIsLoading(false);
+      setIsSearching(false);
+    }
+  };
+
+  // Fetch organizations data
+  const fetchOrganizations = async () => {
+    try {
+      const response = await fetch('/api/organizations');
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch organizations");
+      }
+      
+      const data = await response.json();
+      
+      // Check if data is an array directly (as per your data format)
+      if (Array.isArray(data)) {
+        setOrganizations(data);
+        
+        // Set default organization if there are any
+        if (data.length > 0 && !organizationId) {
+          setOrganizationId(data[0].id);
+        }
+      } 
+      // Also handle the case where it might be wrapped in an 'organizations' property
+      else if (data && data.organizations && Array.isArray(data.organizations)) {
+        setOrganizations(data.organizations);
+        
+        // Set default organization if there are any
+        if (data.organizations.length > 0 && !organizationId) {
+          setOrganizationId(data.organizations[0].id);
+        }
+      } else {
+        // Set empty array if data is not in expected format
+        setOrganizations([]);
+        console.error("Organizations data is undefined or improperly formatted:", data);
+      }
+    } catch (error: any) {
+      console.error("Error fetching organizations:", error);
+      // Set empty array to prevent map errors
+      setOrganizations([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers(1);
+    fetchOrganizations();
+  }, [organizationId]);
+
+  // Handle pagination
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages || page === currentPage) return;
+    setCurrentPage(page);
+    fetchUsers(page, searchQuery);
+  };
+
+  // Handle search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery) {
+        setIsSearching(true);
+        fetchUsers(1, searchQuery);
+      } else if (searchQuery === "") {
+        // Only fetch if search was cleared
+        fetchUsers(1, "");
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Handle sending welcome email with credentials
+  const handleSendCredentials = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/users/${userId}/send-credentials`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to send credentials');
+      }
+      
+      toast({
+        title: "Success",
+        description: "Login credentials sent to user's email.",
+        duration: 3000,
+      });
+    } catch (error: any) {
+      console.error('Error sending credentials:', error);
+      toast({
+        title: "Error",
+        description: error.message || 'Failed to send credentials',
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
+  // Handle password reset
+  const handleResetPassword = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/users/${userId}/reset-password`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to reset password');
+      }
+      
+      toast({
+        title: "Success",
+        description: "Password reset link sent to user's email.",
+        duration: 3000,
+      });
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      toast({
+        title: "Error",
+        description: error.message || 'Failed to reset password',
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
+  // Generate a random password
+  const generateRandomPassword = () => {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
+    let password = '';
+    const length = 12;
+    
+    for (let i = 0; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * characters.length);
+      password += characters.charAt(randomIndex);
+    }
+    
+    return password;
+  };
+
+  // Handle user creation
+  const handleCreateUser = async (formData: any) => {
+    try {
+      // Generate a random password if not provided
+      if (!formData.password) {
+        formData.password = generateRandomPassword();
+      }
+      
+      const response = await fetch(`/api/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          sendEmail: formData.sendEmail,
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create user');
+      }
+      
+      const newUser = await response.json();
+      setUsers(prevUsers => [...prevUsers, newUser.user]);
+      setShowAddForm(false);
+      fetchUsers(1);
+      
+      toast({
+        title: "Success",
+        description: `User ${formData.name} created successfully${formData.sendEmail ? " and credentials sent to their email" : ""}.`,
+        duration: 3000,
+      });
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      toast({
+        title: "Error",
+        description: error.message || 'Failed to create user',
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
+  // Format date safely
+  const formatDate = (dateString: string | null) => {
+    try {
+      return dateString ? format(new Date(dateString), "dd/MM/yyyy") : "N/A";
+    } catch (error) {
+      return "Invalid Date";
+    }
+  };
+
+  // Form for adding users
+  const AddUserForm = () => {
+    const [formData, setFormData] = useState({
+      name: "",
+      email: "",
+      phone: "",
+      role: "USER" as "ADMIN" | "USER",
+      organizationId: organizationId,
+      password: "",
+      sendEmail: true,
+    });
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setFormData({
+        ...formData,
+        [e.target.name]: e.target.value
+      });
+    };
+
+    const handleSelectChange = (name: string, value: string) => {
+      setFormData({
+        ...formData,
+        [name]: value
+      });
+    };
+
+    const handleSwitchChange = (checked: boolean) => {
+      setFormData({
+        ...formData,
+        sendEmail: checked
+      });
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      handleCreateUser(formData);
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Add New User</h2>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowAddForm(false)}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft size={16} />
+            Back to List
+          </Button>
+        </div>
+
+        <div className="border rounded-lg p-6 max-w-2xl">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Full Name *</Label>
+              <Input 
+                id="name" 
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <Input 
+                id="email" 
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input 
+                id="phone" 
+                name="phone"
+                value={formData.phone || ""}
+                onChange={handleChange}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="role">Role *</Label>
+              <Select 
+                value={formData.role} 
+                onValueChange={(value) => handleSelectChange("role", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USER">User</SelectItem>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="organizationId">Organization *</Label>
+              <Select 
+                value={formData.organizationId} 
+                onValueChange={(value) => handleSelectChange("organizationId", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select organization" />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations && organizations.length > 0 ? (
+                    organizations.map((org) => (
+                      <SelectItem key={org.id} value={org.id}>
+                        {org.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="" disabled>No organizations available</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="password">Password (Optional)</Label>
+              <Input 
+                id="password" 
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Leave blank to generate random password"
+              />
+              <p className="text-sm text-gray-500">
+                If left blank, a secure random password will be generated.
+              </p>
+            </div>
+            
+            <div className="flex items-center space-x-2 pt-2">
+              <Switch 
+                id="sendEmail" 
+                checked={formData.sendEmail}
+                onCheckedChange={handleSwitchChange}
+              />
+              <Label htmlFor="sendEmail">
+                Send login credentials to user's email
+              </Label>
+            </div>
+            
+            <Button type="submit" className="w-full">Add User</Button>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {!showAddForm ? (
+        <>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold">User Management</h1>
+            <div className="flex items-center gap-4">
+              {/* Role indicator */}
+              <div className="text-sm bg-gray-100 px-3 py-1 rounded-full">
+                {role === "ADMIN" ? "Admin View" : "User View"}
+              </div>
+              {/* Show Add User button for all users or just for ADMIN role */}
+              <Button 
+                onClick={() => setShowAddForm(true)} 
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors shadow-sm"
+              >
+                <Plus size={16} />
+                Add User
+              </Button>
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex gap-2 items-center w-full max-w-sm">
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                  <Input
+                    placeholder="Search users by name or email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                
+              </div>
+              
+              {role === "ADMIN" && organizations && organizations.length > 0 && (
+                <div className="flex items-center gap-4">
+                  <Label htmlFor="organizationFilter" className="whitespace-nowrap">Organization:</Label>
+                  <Select 
+                    value={organizationId} 
+                    onValueChange={setOrganizationId}
+                  >
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="All Organizations" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {organizations.map((org) => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
+              <div className="text-sm text-gray-500">
+                {isSearching ? "Searching..." : `Showing ${users.length} of ${totalUsers} users`}
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="text-center p-6">Loading users...</div>
+            ) : error ? (
+              <div className="text-center p-6 text-red-500">{error}</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Email Verified</TableHead>
+                      <TableHead>Created Date</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.length > 0 ? (
+                      users.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-medium">{user.name}</TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs ${user.role === "ADMIN" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`}>
+                              {user.role}
+                            </span>
+                          </TableCell>
+                          <TableCell>{user.phone || "N/A"}</TableCell>
+                          <TableCell>
+                            {user.emailVerified ? (
+                              <span className="text-green-600 text-xs">Verified</span>
+                            ) : (
+                              <span className="text-orange-600 text-xs">Not Verified</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{formatDate(user.createdAt)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleSendCredentials(user.id)}
+                                title="Send Login Credentials"
+                              >
+                                <Mail size={14} className="mr-1" />
+                                Send Credentials
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleResetPassword(user.id)}
+                                title="Reset Password"
+                              >
+                                <KeyRound size={14} className="mr-1" />
+                                Reset Password
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center h-24">
+                          No users found
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+                
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4 px-2">
+                    <div className="text-sm text-gray-500">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1 || isLoading}
+                      >
+                        <ChevronLeft size={16} className="mr-1" />
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages || isLoading}
+                      >
+                        Next
+                        <ChevronRight size={16} className="ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <AddUserForm />
+      )}
+    </div>
+  );
+}

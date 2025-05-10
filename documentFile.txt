@@ -1,0 +1,943 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+import {
+  FileText,
+  LogOut,
+  Search,
+  Settings,
+  UploadCloud,
+  X,
+} from "lucide-react";
+import { signOut } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
+import React, { useEffect, useState } from "react";
+
+// UI Components
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useCurrentUser } from "@/hooks/auth";
+import { toast } from "@/hooks/use-toast";
+// import { useUploadThing } from "@/utils/uploadthing";
+
+// Interface definitions
+interface DocumentType {
+  id: string;
+  name: string;
+  description?: string;
+  organizationId?: string;
+  metadata?: Metadata[];
+}
+
+interface Metadata {
+  id: string;
+  documentTypeId: string;
+  schema: MetadataSchema;
+  version: string;
+}
+
+interface MetadataSchema {
+  type: string;
+  required: string[];
+  properties: Record<string, MetadataField>;
+}
+
+interface MetadataField {
+  type: string;
+  description: string;
+}
+
+interface studentDocTypes {
+  id: string;
+}
+interface BulkUploadFile {
+  id: string;
+  file: File;
+  name: string;
+  size: string;
+  type: string;
+  url: string | null;
+  uploaded: boolean;
+  tagged: boolean;
+}
+
+interface Document {
+  id: string;
+  filename: string;
+  uploadedAt: string;
+  mimeType : string;
+  documentType: {
+    id: string;
+    name: string;
+  };
+  documentTypeId : string;
+  updatedAt : string;
+  uploadThingUrl: string;
+  metadata?: Record<string, any>;
+}
+
+const DocumentManagementDashboard = () => {
+  // State management
+  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  //const [individuals, setIndividuals] = useState<Individual[]>([]);
+  const [selectedIndividual, setSelectedIndividual] = useState<string>("");
+  const [selectedDocumentType, setSelectedDocumentType] = useState<string>("");
+  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [userDocuments, setUserDocuments] = useState<Document[]>([]);
+  const [studentDocTypes, setStudentDocTypes] = useState<studentDocTypes[]>([]);
+  const [folder, setFolder] = useState<any>([]);
+
+  // Bulk upload states
+  const [bulkFiles, setBulkFiles] = useState<BulkUploadFile[]>([]);
+  const [currentTaggingFile, setCurrentTaggingFile] =
+    useState<BulkUploadFile | null>(null);
+  const [tagDialogOpen, setTagDialogOpen] = useState(false);
+  const [documentPreviewUrl, setDocumentPreviewUrl] = useState<string | null>(
+    null
+  );
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [editingDocument, setEditingDocument] = useState<Document | null>(null);
+
+  const searchParams = useSearchParams();
+  const user = useCurrentUser();
+  const organizationId = "0cb46f34-0d7d-48f8-8195-e664dbe6dd80"; // Example organization ID
+
+  // Get student ID from query parameter
+  useEffect(() => {
+    const studentId = searchParams.get("studentId");
+    if (studentId) {
+      setSelectedIndividual(studentId);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (selectedIndividual) {
+      fetchUserDocuments(selectedIndividual);
+    }
+  }, [selectedIndividual]);
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchDocumentTypes();
+  }, []);
+
+
+  const studentsDoctype = async () => {
+    try {
+      if (!selectedIndividual) {
+        
+
+        setStudentDocTypes([]);
+      } else {
+        const res = await fetch(
+          `/api/studentdoctypes?studentId=${selectedIndividual}`
+        );
+        if (!res.ok) throw new Error("Failed to fetch document types");
+        const data = await res.json();
+        setStudentDocTypes(data.documentType);
+        
+      }
+    } catch (error) {
+      console.error("Error fetching document types:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load document types",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(()=>{
+    const studentsFolder = async () => {
+      try {
+          const res = await fetch(
+            `/api/folders?StudentId=${selectedIndividual}`
+          );
+          if (!res.ok) throw new Error("Failed to fetch document types");
+          const data = await res.json();
+          
+          
+          setFolder(data[0].id);
+          
+        
+      } catch (error) {
+        console.error("Error fetching document types:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load document types",
+          variant: "destructive",
+        });
+      
+    };
+  }
+  if(selectedIndividual){
+  studentsFolder();
+  }
+  },[selectedIndividual])
+
+  const fetchDocumentTypes = async () => {
+    try {
+      const res = await fetch("/api/documentstype");
+      if (!res.ok) throw new Error("Failed to fetch document types");
+      const data = await res.json();
+      setDocumentTypes(data);
+    } catch (error) {
+      console.error("Error fetching document types:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load document types",
+        variant: "destructive",
+      });
+    }
+  };
+
+
+  const fetchUserDocuments = async (individualId: string) => {
+    try {
+      const res = await fetch(
+        `/api/documents?organizationId=${organizationId}&studentId=${individualId}`
+      );
+      if (!res.ok) throw new Error("Failed to fetch user documents");
+      const data = await res.json();
+
+      setUserDocuments(data || []);
+      studentsDoctype();
+    } catch (error) {
+      console.error("Error fetching user documents:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load user documents",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut({ redirectTo: "/auth/login" });
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleBulkFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    studentsDoctype();
+    if (e.target.files && e.target.files.length > 0) {
+      const filesArray = Array.from(e.target.files);
+      const newBulkFiles = filesArray.map((file) => ({
+        id: file.name + Date.now(),
+        file,
+        name: file.name,
+        size: formatFileSize(file.size),
+        type: file.type,
+        url: URL.createObjectURL(file),
+        uploaded: false,
+        tagged: false,
+      }));
+
+      setBulkFiles((prevFiles) => [...prevFiles, ...newBulkFiles]);
+    }
+  };
+
+  const formatFileSize = (size: number) => {
+    if (size < 1024) return size + " bytes";
+    else if (size < 1024 * 1024) return (size / 1024).toFixed(1) + " KB";
+    else return (size / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const resetForm = () => {
+    setFormData({});
+    setSelectedDocumentType("");
+  };
+
+  const handleTagDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (
+      (!currentTaggingFile && !editingDocument) ||
+      !selectedDocumentType ||
+      !selectedIndividual
+    ) {
+      toast({
+        title: "Error",
+        description: "Please fill all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Get the metadata schema ID
+      const selectedType = documentTypes.find(
+        (doc) => doc.id === selectedDocumentType
+      );
+      const metadataSchemaId = selectedType?.metadata?.[0]?.id;
+      // studentsDoctype();
+
+      if (!metadataSchemaId) {
+        throw new Error("Invalid document type selected");
+      }
+
+      if (editingDocument) {
+        // Update existing document
+        const documentData = {
+          id: editingDocument.id,
+          studentId: selectedIndividual,
+          documentTypeId: selectedDocumentType,
+          organizationId : organizationId,
+          metadata: formData,
+          metadataSchemaId: metadataSchemaId,
+        };
+
+        const documentRes = await fetch(
+          `/api/documents?id=${editingDocument.id}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(documentData),
+          }
+        );
+
+        if (!documentRes.ok) {
+          throw new Error("Failed to update document");
+        }
+
+        toast({
+          title: "Success",
+          description: "Document updated successfully",
+        });
+      } else {
+        // Create new document record
+        // Fix the URL to use a proper string instead of blob URL
+        const fileUrl = currentTaggingFile?.url || "";
+        const properUrl = fileUrl.startsWith("blob:")
+          ? await uploadFileAndGetUrl(currentTaggingFile?.file)
+          : fileUrl;
+
+        const documentData = {
+          studentId: selectedIndividual,
+          documentTypeId:  null,
+          fileSize: currentTaggingFile?.size,
+          mimeType: currentTaggingFile?.type,
+          uploadThingUrl: properUrl, // Use the proper URL
+          filename: currentTaggingFile?.name,
+          metadata: formData,
+          metadataSchemaId: metadataSchemaId ,
+          folderId: folder,
+          organizationId: organizationId,
+          uploadedBy: user?.id || "unknown",
+          verificationStatus: true,
+        };
+
+        const documentRes = await fetch("/api/documents", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(documentData),
+        });
+
+        if (!documentRes.ok) {
+          throw new Error("Failed to create document record");
+        }
+
+        const createdDocument = await documentRes.json();
+
+        // Extract keywords
+        const keywordsData = {
+          documentId: createdDocument.id,
+          studentId: selectedIndividual,
+          extractedText: "Sample extracted text from document",
+          keywords: Object.values(formData)
+            .filter((v) => typeof v === "string")
+            .map((v) => v.toString()),
+        };
+
+        const keywordsRes = await fetch("/api/document-keywords", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(keywordsData),
+        });
+
+        if (!keywordsRes.ok) {
+          console.warn("Failed to create keywords, but document was uploaded");
+        }
+
+        // Update the bulk files state to mark this file as tagged
+        if (currentTaggingFile) {
+          setBulkFiles((prevFiles) =>
+            prevFiles.map((f) =>
+              f.id === currentTaggingFile.id ? { ...f, tagged: true } : f
+            )
+          );
+        }
+
+        toast({
+          title: "Success",
+          description: "Document tagged successfully",
+        });
+      }
+
+      // Refresh the user documents
+      fetchUserDocuments(selectedIndividual);
+
+      resetForm();
+      setTagDialogOpen(false);
+      setEditingDocument(null);
+    } catch (error) {
+      console.error("Error tagging document:", error);
+      toast({
+        title: "Error",
+        description: "Failed to tag document",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const uploadFileAndGetUrl = async (file: File | undefined) => {
+    if (!file) return "";
+
+    // const result = await startUpload([file]);
+
+    // if (result && result.length > 0) {
+    //   return result[0].url;
+    // } else {
+    //   return "";
+    // }
+
+    // // Simulate uploading the file
+    return new Promise<string>((resolve) => {
+      // Simulate a network request
+      setTimeout(() => {
+        // Create a Blob URL instead of a proper URL
+        const blobUrl = URL.createObjectURL(file);
+        resolve(blobUrl);
+      }, 1000);
+    });
+  };
+
+  // Handle bulk upload of files
+  const uploadBulkFiles = async () => {
+    if (bulkFiles.length === 0) {
+      toast({
+        title: "Error",
+        description: "No files selected for upload",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedIndividual) {
+      toast({
+        title: "Error",
+        description: "Please select an individual first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Upload each file
+      const updatedFiles = [...bulkFiles];
+
+      for (let i = 0; i < bulkFiles.length; i++) {
+        const currentFile = bulkFiles[i];
+
+        // Skip already uploaded files
+        if (currentFile.uploaded) continue;
+
+        try {
+          // In a real app, use uploadthing or another service here
+          const properUrl = await uploadFileAndGetUrl(currentFile.file);
+
+          // Update file status in the state
+          updatedFiles[i] = {
+            ...currentFile,
+            url: properUrl, // Use the proper URL instead of blob URL
+            uploaded: true,
+          };
+
+          setBulkFiles(updatedFiles);
+
+        const documentData = {
+          studentId: selectedIndividual,
+          documentTypeId:  null,
+          fileSize: updatedFiles[i]?.size,
+          mimeType: updatedFiles[i].type,
+          uploadThingUrl: properUrl, // Use the proper URL
+          filename: updatedFiles[i].name,
+          metadata: {},
+          metadataSchemaId: "",
+          folderId: folder,
+          organizationId: organizationId,
+          uploadedBy: user?.id || "unknown",
+          verificationStatus: true,
+        };
+
+        const documentRes = await fetch("/api/documents", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(documentData),
+        });
+
+        if (!documentRes.ok) {
+          throw new Error("Failed to create document record");
+        }
+
+        const createdDocument = await documentRes.json();
+
+        // Extract keywords
+        const keywordsData = {
+          documentId: createdDocument.id,
+          studentId: selectedIndividual,
+          extractedText: "Sample extracted text from document",
+          keywords: Object.values(formData)
+            .filter((v) => typeof v === "string")
+            .map((v) => v.toString()),
+        };
+
+        const keywordsRes = await fetch("/api/document-keywords", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(keywordsData),
+        });
+
+        if (!keywordsRes.ok) {
+          console.warn("Failed to create keywords, but document was uploaded");
+        }
+
+          toast({
+            title: "Success",
+            description: `${currentFile.name} uploaded successfully`,
+          });
+        } catch (err) {
+          console.error(`Error uploading ${currentFile.name}:`, err);
+          toast({
+            title: "Error",
+            description: `Failed to upload ${currentFile.name}`,
+            variant: "destructive",
+          });
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Remove a file from bulk upload
+  const removeFile = (id: string) => {
+    setBulkFiles((prevFiles) => prevFiles.filter((f) => f.id !== id));
+  };
+
+  // Open tag dialog for a specific file
+  const openTaggingDialog = (file: BulkUploadFile) => {
+    setCurrentTaggingFile(file);
+    setEditingDocument(null);
+    resetForm(); // Reset form before tagging a new file
+    setTagDialogOpen(true);
+  };
+
+  // Open edit dialog for existing document
+  const openEditDialog = (document: Document) => {
+    setEditingDocument(document);
+    setCurrentTaggingFile(null);
+    // Set the form data from the document metadata
+    setFormData(document.metadata || {});
+    // Set the document type
+    setSelectedDocumentType(document.documentTypeId || "");
+    setTagDialogOpen(true);
+  };
+
+  // Open document preview
+  const openDocumentPreview = (url: string) => {
+    setDocumentPreviewUrl(url);
+    setPreviewDialogOpen(true);
+  };
+
+  // Get the selected document type's metadata schema
+  const selectedTypeMetadata = selectedDocumentType
+    ? documentTypes.find((doc) => doc.id === selectedDocumentType)
+        ?.metadata?.[0]?.schema
+    : null;
+  //const filteredDocuments = documentTypes.filter(doc => studentDocTypes.includes(doc.documentId));
+  // documentTypes.map(doc=>
+  // console.log("documentPPPPPPPPPPPPPPPPPPPPPPPPP", documentTypes);
+  // )
+  // console.log("studentPPPPPPPPPPPPPPPPPPPPPPPPP", studentDocTypes);
+
+  const filteredDocuments = documentTypes.filter(
+    (doc) => !studentDocTypes.some((studentDoc) => studentDoc.id === doc.id)
+  ); // Use .some() to check for matching IDs
+
+  // console.log("Filtered Documents:", filteredDocuments);
+
+  // const filteredDocuments = documentTypes
+  // .filter(doc => !studentDocTypes.includes(doc.id)) // Keep only unused documents
+  // console.log("filterPPPPPPPPPPPPPPPPPPPPPPPPP",filteredDocuments);
+
+  return (
+    <div className="p-6">
+      {/* Navbar */}
+      <nav className="bg-white shadow-sm border-b px-6 py-3">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-gray-800">
+            Document Management
+          </h1>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="flex items-center gap-2 hover:bg-gray-50 rounded-lg p-2 transition-colors">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage
+                    src="/images/user_alt_icon.png"
+                    alt={user?.name || "User"}
+                  />
+                  <AvatarFallback>
+                    {user?.name?.substring(0, 2) || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium text-gray-700">
+                  {user?.name || "User"}
+                </span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56" align="end">
+              <div className="space-y-1">
+                <button className="w-full flex items-center gap-2 rounded-lg p-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+                  <Settings className="h-4 w-4" />
+                  Profile Settings
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 rounded-lg p-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </nav>
+
+      <div className="flex justify-between items-center mb-6 mt-4">
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+          <Input
+            type="search"
+            placeholder="Search documents..."
+            className="pl-10"
+          />
+        </div>
+      </div>        
+      <Button
+          variant="default"
+          className="flex items-center gap-2"
+          onClick={() => document.getElementById("bulk-file-upload")?.click()}
+          disabled={!selectedIndividual}
+        >
+          <UploadCloud className="h-4 w-4" />
+          Bulk Upload
+          <input
+            id="bulk-file-upload"
+            type="file"
+            multiple
+            className="sr-only"
+            onChange={handleBulkFileChange}
+            accept="image/*, .pdf, .doc, .docx, .ppt, .pptx"
+            disabled={!selectedIndividual}
+          />
+        </Button>
+      </div>
+
+      
+
+      {/* Selected Files Preview (when bulk uploading) */}
+      {bulkFiles.length > 0 && (
+        <Card className="mb-8">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Selected Files ({bulkFiles.length})</CardTitle>
+            <Button onClick={uploadBulkFiles} disabled={isLoading || !selectedIndividual}>
+              {isLoading ? "Uploading..." : "Upload Files"}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {bulkFiles.map((file) => (
+                <Card key={file.id} className="overflow-hidden">
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        {file.type.startsWith("image") ? (
+                          <img
+                            src={file.url || ""}
+                            alt={file.name}
+                            className="h-12 w-12 object-cover rounded"
+                          />
+                        ) : (
+                          <div className="h-12 w-12 bg-gray-100 rounded flex items-center justify-center">
+                            <FileText className="h-6 w-6 text-blue-500" />
+                          </div>
+                        )}
+                        <div className="ml-3">
+                          <p className="font-medium text-sm truncate max-w-[150px]">{file.name}</p>
+                          <p className="text-xs text-gray-500">{file.size}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700"
+                        onClick={() => removeFile(file.id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => openTaggingDialog(file)}
+                      disabled={!file.uploaded}
+                    >
+                      {file.tagged ? "Edit Tags" : "Add Tags"}
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Document Cards */}
+      {!selectedIndividual ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed">
+          <FileText className="mx-auto h-16 w-16 text-gray-300" />
+          <p className="mt-4 text-lg text-gray-500">
+            Select an individual to view their documents
+          </p>
+        </div>
+      ) : userDocuments.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed">
+          <FileText className="mx-auto h-16 w-16 text-gray-300" />
+          <p className="mt-4 text-lg text-gray-500">
+            No documents found for this individual
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {userDocuments.map((doc) => (
+            <Card key={doc.id} className="overflow-hidden hover:shadow-md transition-shadow">
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="bg-blue-50 p-3 rounded">
+                    <FileText className="h-6 w-6 text-blue-500" />
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {new Date(doc.updatedAt).toLocaleDateString()}
+                  </div>
+                </div>
+                <h3 className="font-medium text-lg mb-1 truncate">{doc.filename}</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  {doc.mimeType || "Unknown type"}
+                </p>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => openEditDialog(doc)}
+                  >
+                    Edit
+                  </Button>
+                  
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => openDocumentPreview(doc.uploadThingUrl)}
+                  >
+                    View
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Document Tagging Dialog */}
+      <Dialog
+        open={tagDialogOpen}
+        onOpenChange={(open) => {
+          if (!isLoading) setTagDialogOpen(open);
+          if (!open) {
+            setCurrentTaggingFile(null);
+            setEditingDocument(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingDocument
+                ? `Edit Document: ${editingDocument.filename}`
+                : `Tag Document: ${currentTaggingFile?.name}`}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleTagDocument}>
+            <div className="grid gap-4 py-4">
+              {/* Preview */}
+              {currentTaggingFile?.type.startsWith("image") &&
+                currentTaggingFile?.url && (
+                  <div className="border rounded p-2 flex justify-center">
+                    <img
+                      src={currentTaggingFile.url}
+                      alt={currentTaggingFile.name}
+                      className="max-h-40 object-contain"
+                    />
+                  </div>
+                )}
+
+              {/* Document Type Selection */}
+              <div className="grid gap-4">
+                <Label className="font-medium">Document Type</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {filteredDocuments.map((doc) => (
+                    <div
+                      key={doc.id}
+                      onClick={() => setSelectedDocumentType(doc.id)}
+                      className={`border rounded-md p-3 cursor-pointer ${
+                        selectedDocumentType === doc.id ? "border-blue-500 bg-blue-50" : ""
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          id={doc.id}
+                          name="site_name"
+                          value={doc.name}
+                          checked={selectedDocumentType === doc.id}
+                          className="form-radio"
+                        />
+                        <label htmlFor={doc.id} className="cursor-pointer">{doc.name}</label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Dynamic Metadata Fields */}
+              {selectedTypeMetadata && (
+                <div className="space-y-4 border p-4 rounded-md bg-gray-50">
+                  <h3 className="font-medium">Document Information</h3>
+
+                  {Object.entries(selectedTypeMetadata.properties || {}).map(
+                    ([key, value]) => (
+                      <div key={key} className="grid grid-cols-1 gap-2">
+                        <label className="text-sm font-medium text-gray-700">
+                          {value.description}
+                          {selectedTypeMetadata.required?.includes(key) && (
+                            <span className="text-red-500 ml-1">*</span>
+                          )}
+                        </label>
+                        <Input
+                          type={value.type === "number" ? "number" : "text"}
+                          name={key}
+                          value={formData[key] || ""}
+                          required={selectedTypeMetadata.required?.includes(key)}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                type="submit"
+                disabled={isLoading || !selectedDocumentType}
+              >
+                {isLoading ? "Processing..." : "Save Document Tags"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Preview Dialog */}
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-screen overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Document Preview</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-96 overflow-auto">
+            {documentPreviewUrl &&
+              (documentPreviewUrl.toLowerCase().endsWith(".pdf") ? (
+                <iframe
+                  src={documentPreviewUrl}
+                  className="w-full h-full min-h-96"
+                  title="Document Preview"
+                />
+              ) : documentPreviewUrl.match(/\.(jpeg|jpg|gif|png)$/i) ? (
+                <img
+                  src={documentPreviewUrl}
+                  alt="Document Preview"
+                  className="max-w-full h-auto max-h-full mx-auto"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-center p-8">
+                  <div>
+                    <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <p>This document type cannot be previewed directly.</p>
+                    <a
+                      href={documentPreviewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline mt-2 inline-block"
+                    >
+                      Download Document
+                    </a>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default DocumentManagementDashboard;
