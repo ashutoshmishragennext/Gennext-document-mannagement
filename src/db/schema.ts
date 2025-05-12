@@ -87,6 +87,7 @@ export const StudentsTable = pgTable(
     // Contact information
     email: text("email"),
     phone: text("phone"),
+    user: text("user"),
     // address: text("address"),
     // Metadata
     organizationId: uuid("organization_id").references(() => OrganizationsTable.id).notNull(),

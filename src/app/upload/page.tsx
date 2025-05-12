@@ -2,7 +2,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import {
+  ArrowLeft,
   FileText,
+
   LogOut,
   Settings,
   UploadCloud,
@@ -33,6 +35,7 @@ import {
 import { useCurrentUser } from "@/hooks/auth";
 import { toast } from "@/hooks/use-toast";
 import { useUploadThing } from "@/utils/uploadthing";
+import Link from "next/link";
 
 // Interface definitions
 interface DocumentType {
@@ -103,6 +106,7 @@ const DocumentManagementDashboard = () => {
   const [userDocuments, setUserDocuments] = useState<Document[]>([]);
   const [studentDocTypes, setStudentDocTypes] = useState<studentDocTypes[]>([]);
   const [folder, setFolder] = useState<any>([]);
+  const [folderId,setFolderId]= useState<any>([]);
  
   // Bulk upload states
   const [bulkFiles, setBulkFiles] = useState<BulkUploadFile[]>([]);
@@ -122,6 +126,10 @@ const DocumentManagementDashboard = () => {
   // Get student ID from query parameter
   useEffect(() => {
     const studentId = searchParams.get("studentId");
+    const folderId = searchParams.get("folderId");
+    if(folderId){
+      setFolderId(folderId);
+    }
     if (studentId) {
       setSelectedIndividual(studentId);
     }
@@ -200,7 +208,7 @@ const DocumentManagementDashboard = () => {
   const fetchUserDocuments = async (individualId: string) => {
     try {
       const res = await fetch(
-        `/api/documents?organizationId=${organizationId}&studentId=${individualId}`
+        `/api/documents?organizationId=${organizationId}&studentId=${individualId}&folderId=${folderId}`
       );
       if (!res.ok) throw new Error("Failed to fetch user documents");
       const data = await res.json();
@@ -622,7 +630,16 @@ const DocumentManagementDashboard = () => {
       </nav>
 
       {/* Bulk upload button */}
-      <div className="flex justify-end items-center mb-6 mt-4">
+      <div className="flex justify-between items-center mb-6 mt-4">
+        <Link href={"/dashboard"}>
+          <button 
+              className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors shadow-sm"
+              
+            >
+              <ArrowLeft size={18} />
+              <span>Back</span>
+            </button>
+            </Link>
         <Button
           variant="default"
           className="flex items-center gap-2"

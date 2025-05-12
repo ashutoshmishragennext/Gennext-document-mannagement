@@ -2,7 +2,7 @@
 import { db } from "@/db";
 import { FoldersTable, NewFolder, StudentsTable } from "@/db/schema";
 import { uploadthingClient } from "@/utils/uploadthingClient";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -19,17 +19,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Step 1: Create Folder in UploadThing
-    const uploadThingFolder = await uploadthingClient.createFolder({
-      name,
-      parentFolderId, // If parentFolderId exists, pass it here to support nested folders
-    });
+    // const uploadThingFolder = await uploadthingClient.createFolder({
+    //   name,
+    //   parentFolderId, // If parentFolderId exists, pass it here to support nested folders
+    // });
 
-    if (!uploadThingFolder || !uploadThingFolder.folderId) {
-      return NextResponse.json(
-        { error: "Failed to create folder in UploadThing" },
-        { status: 500 }
-      );
-    }
+    // if (!uploadThingFolder || !uploadThingFolder.folderId) {
+    //   return NextResponse.json(
+    //     { error: "Failed to create folder in UploadThing" },
+    //     { status: 500 }
+    //   );
+    // }
 
     // Step 2: Create a new folder record in Drizzle ORM with the UploadThing folder ID
     const newFolder: NewFolder = {
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       studentId,
       organizationId,
       createdBy,
-      uploadThingFolderId: uploadThingFolder.folderId, // Store UploadThing folder ID
+      // uploadThingFolderId: uploadThingFolder.folderId, // Store UploadThing folder ID
     };
 
     const insertedFolders = await db.insert(FoldersTable).values(newFolder).returning();
@@ -62,20 +62,50 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
-    const studentId = searchParams.get("StudentId");
+    const studentId = searchParams.get("studentId");
+    const parentFolderId = searchParams.get("parentFolderId");
+    const organizationId = searchParams.get("organizationId");
+    
+    // Build the query based on provided params
+    let query;
     
     if (studentId) {
-      // If StudentId is provided, return folders for that specific student
-      const result = await db.select()
-                 .from(FoldersTable)
-                 .where(eq(FoldersTable.studentId, studentId));
-      return NextResponse.json(result);
+      if (parentFolderId === 'null' || parentFolderId === '') {
+        // Get root folders for the student
+        query = db.select()
+          .from(FoldersTable)
+          .where(
+            and(
+              eq(FoldersTable.studentId, studentId),
+              isNull(FoldersTable.parentFolderId)
+            )
+          )
+          .orderBy(desc(FoldersTable.createdAt));
+      } else if (parentFolderId) {
+        // Get subfolders under the specified parent folder
+        query = db.select()
+          .from(FoldersTable)
+          .where(
+            and(
+              eq(FoldersTable.studentId, studentId),
+              eq(FoldersTable.parentFolderId, parentFolderId)
+            )
+          )
+          .orderBy(desc(FoldersTable.createdAt));
+      } else {
+        // Get all folders for the student
+        query = db.select()
+          .from(FoldersTable)
+          .where(eq(FoldersTable.studentId, studentId))
+          .orderBy(desc(FoldersTable.createdAt));
+      }
     } else {
-      // If no StudentId is provided, return folders with student information
-      const result = await db
+      // If no studentId, return folders with student information
+      query = db
         .select({
           folder: FoldersTable,
           student: StudentsTable,
@@ -84,15 +114,33 @@ export async function GET(req: NextRequest) {
         .leftJoin(
           StudentsTable,
           eq(FoldersTable.studentId, StudentsTable.id)
-        )
-        .orderBy(desc(FoldersTable.createdAt));;
+        );
       
-      // Map the results to a clean format
+      if (parentFolderId === 'null' || parentFolderId === '') {
+        // Only root folders
+        query = query.where(isNull(FoldersTable.parentFolderId));
+      } else if (parentFolderId) {
+        // Only subfolders of specified parent
+        query = query.where(eq(FoldersTable.parentFolderId, parentFolderId));
+      }
+
+      if (organizationId) {
+        query = query.where(eq(FoldersTable.organizationId, organizationId));
+      }
+      
+      query = query.orderBy(desc(FoldersTable.createdAt));
+    }
+
+    const result = await query;
+    
+    // Format the result if it contains joined student data
+    if (!studentId) {
       const formattedResult = result.map(({ folder, student }) => ({
         id: folder.id,
         name: folder.name,
         description: folder.description,
         parentFolderId: folder.parentFolderId,
+        studentId: folder.studentId,
         organizationId: folder.organizationId,
         createdAt: folder.createdAt,
         updatedAt: folder.updatedAt,
@@ -100,13 +148,12 @@ export async function GET(req: NextRequest) {
         student: student ? {
           id: student.id,
           fullName: student.fullName,
-          // rollNumber: student.rollNumber,
-          // Include other student fields as needed
         } : null
       }));
-
       return NextResponse.json(formattedResult);
     }
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Error fetching folders:", error);
     return NextResponse.json(
@@ -116,86 +163,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-
-// export async function GET(req: NextRequest) {
-//   try {
-//     // Get query parameters
-//     const url = new URL(req.url);
-//     const studentId = url.searchParams.get("studentId");
-//     const parentFolderId = url.searchParams.get("parentFolderId");
-//     // const organizationId = url.searchParams.get("organizationId");
-//     const uploadThingFolderId = url.searchParams.get("uploadThingFolderId");
-
-//     // Validate required fields
-//     // if (!organizationId) {
-//     //   return NextResponse.json(
-//     //     { error: "Missing required field: organizationId" },
-//     //     { status: 400 }
-//     //   );
-//     // }
-
-//     // let query = db.select().from(FoldersTable).where(
-//     //   eq(FoldersTable.organizationId, organizationId)
-//     // );
-//     let query = db.select().from(FoldersTable)
-
-//     // Apply additional filters if provided
-//     if (studentId) {
-//       query = query.where(eq(FoldersTable.studentId, studentId));
-//     }
-
-//     if (parentFolderId) {
-//       query = query.where(eq(FoldersTable.parentFolderId, parentFolderId));
-//     } else if (parentFolderId === null || parentFolderId === "") {
-//       // If parentFolderId is explicitly null/empty, return root folders
-//       query = query.where(eq(FoldersTable.parentFolderId, null));
-//     }
-
-//     // if (uploadThingFolderId) {
-//     //   query = query.where(eq(FoldersTable.uploadThingFolderId, uploadThingFolderId));
-//     // }
-
-//     const folders = await query;
-
-//     // If requested, also fetch files from UploadThing for each folder
-//     const includeFolderContents = url.searchParams.get("includeFolderContents") === "true";
-    
-//     if (includeFolderContents && folders.length > 0) {
-//       const foldersWithContents = await Promise.all(
-//         folders.map(async (folder) => {
-//           if (folder.uploadThingFolderId) {
-//             try {
-//               const files = await uploadthingClient.listFiles(folder.uploadThingFolderId);
-//               return {
-//                 ...folder,
-//                 files
-//               };
-//             } catch (error) {
-//               console.error(`Error fetching files for folder ${folder.id}:`, error);
-//               return {
-//                 ...folder,
-//                 files: [],
-//                 error: "Failed to fetch files"
-//               };
-//             }
-//           }
-//           return folder;
-//         })
-//       );
-//       return NextResponse.json(foldersWithContents);
-//     }
-
-//     return NextResponse.json(folders);
-//   } catch (error) {
-//     console.error("Error fetching folders:", error);
-//     return NextResponse.json(
-//       { error: "Failed to fetch folders" },
-//       { status: 500 }
-//     );
-//   }
-// }
-
-// Handle folder deletion
 export async function DELETE(req: NextRequest) {
   try {
     const url = new URL(req.url);

@@ -174,6 +174,7 @@ export async function POST(request: NextRequest) {
             // passportNumber: validatedData.passportNumber || null,
             // sessionYear: validatedData.sessionYear || new Date().getFullYear().toString(),
             email: validatedData.email,
+            user:user.id,
             phone: validatedData.phone || null,
             // address: validatedData.address || null,
             organizationId: validatedData.organizationId,
@@ -185,23 +186,23 @@ export async function POST(request: NextRequest) {
         const profile = studentProfile[0];
         
         // 3. Create root folder for the student
-        const rootFolder = await tx
-          .insert(FoldersTable)
-          .values({
-            name: `${validatedData.name}'s Files`,
-            description: `Main folder for ${validatedData.name}`,
-            studentId: profile.id,
-            organizationId: validatedData.organizationId,
-            createdBy: user.id,
-          })
-          .returning()
-          .execute();
+        // const rootFolder = await tx
+        //   .insert(FoldersTable)
+        //   .values({
+        //     name: `${validatedData.name}'s Files`,
+        //     description: `Main folder for ${validatedData.name}`,
+        //     studentId: profile.id,
+        //     organizationId: validatedData.organizationId,
+        //     createdBy: user.id,
+        //   })
+        //   .returning()
+        //   .execute();
         
         // Return the data
         return {
           user,
           profile,
-          folder: rootFolder[0],
+          // folder: rootFolder[0],
         };
       });
     } catch (error) {
@@ -232,7 +233,7 @@ export async function POST(request: NextRequest) {
       message: "User created successfully with profile and folder",
       user: safeUser,
       profile: result.profile,
-      folder: result.folder,
+      // folder: result.folder,
       email: {
         sent: emailResult !== null,
         error: emailError

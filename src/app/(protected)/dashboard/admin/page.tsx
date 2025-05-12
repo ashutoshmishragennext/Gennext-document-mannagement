@@ -247,7 +247,8 @@ export default function Dashboard() {
   // Navigation items for sidebar
   const navItems = [
     { id: 'documents', label: 'Documents', icon: <File className="h-5 w-5" /> },
-    { id: 'students', label: 'Students', icon: <Users className="h-5 w-5" /> },
+    { id: 'user', label: 'User', icon: <Users className="h-5 w-5" /> },
+     { id: 'folders', label: 'Folders', icon: <FolderOpen className="h-5 w-5" /> },
     { id: 'create schema', label: 'Create', icon: <File className="h-5 w-5" /> },
     
     // { id: 'folders', label: 'Folders', icon: <FolderOpen className="h-5 w-5" /> },
@@ -265,7 +266,7 @@ export default function Dashboard() {
            
           </div>
         );
-      case 'students':
+      case 'user':
         return (
          <UserManagement/>
         

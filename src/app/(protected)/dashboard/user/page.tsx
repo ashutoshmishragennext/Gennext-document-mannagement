@@ -209,7 +209,7 @@ export default function Dashboard() {
   // console.log("user",user?.name);
   
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeComponent, setActiveComponent] = useState('documents');
+  const [activeComponent, setActiveComponent] = useState('folders');
 
   const handleLogout = async () => {
     await signOut({ redirectTo: "/auth/login" });
