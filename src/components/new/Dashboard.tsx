@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { CheckCircle, Cloud, FileText, Folder, Upload } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 const Dashboard1   = () => {
   // Sample data - replace with your actual data
-  const [totalDocuments, setTotalDocuments] = useState(10234);
-  const [pendingDocuments, setPendingDocuments] = useState(1245);
+  const [totalDocuments, setTotalDocuments] = useState(0);
+  const [pendingDocuments, setPendingDocuments] = useState(0);
   const [storageUsed, setStorageUsed] = useState(15); // in GB
   const [storageTotal, setStorageTotal] = useState(50); // in GB
   
@@ -35,6 +35,16 @@ const Dashboard1   = () => {
   ];
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
+  useEffect(() => {
+    const fetchDocumentCount = async () => {
+    const response = await fetch("/api/documentcount");
+    const data = await response.json();
+    setTotalDocuments(data.count) 
+     }
+    fetchDocumentCount()
+  }, [])
+  
 
   return (
     <div className="bg-gray-50 min-h-screen p-6">
