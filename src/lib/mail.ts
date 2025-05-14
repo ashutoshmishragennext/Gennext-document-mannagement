@@ -83,14 +83,14 @@ export const sendEmail = async (
     console.error("Failed to send email:", error);
     
     // Provide more helpful error debugging
-    if (error.code === 'EAUTH') {
-      console.error("Authentication error. Please check your email credentials.");
-      console.error("Make sure you're using an application-specific password if 2FA is enabled.");
-    } else if (error.code === 'ESOCKET') {
-      console.error("Socket connection error. Check your host and port settings.");
-    } else if (error.code === 'ECONNECTION') {
-      console.error("Connection error. Check your network and firewall settings.");
-    }
+    // if (error.code === 'EAUTH') {
+    //   console.error("Authentication error. Please check your email credentials.");
+    //   console.error("Make sure you're using an application-specific password if 2FA is enabled.");
+    // } else if (error.code === 'ESOCKET') {
+    //   console.error("Socket connection error. Check your host and port settings.");
+    // } else if (error.code === 'ECONNECTION') {
+    //   console.error("Connection error. Check your network and firewall settings.");
+    // }
     
     throw error;
   }
@@ -143,7 +143,7 @@ export const testEmailConfig = async () => {
   } catch (error) {
     return { 
       success: false, 
-      message: `Email configuration test failed: ${error.message}`,
+      message: `Email configuration test failed:`,
       error: error
     };
   }

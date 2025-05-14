@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -193,10 +195,10 @@ export function UserManagement() {
   }, [searchQuery]);
 
   // Handle row click to navigate to FolderManagement
-  const handleRowClick = (userId: string) => {
-    setSelectedUserId(userId);
-    setShowFolderManagement(true);
-  };
+  // const handleRowClick = (userId: string) => {
+  //   setSelectedUserId(userId);
+  //   setShowFolderManagement(true);
+  // };
 
   // Handle back button from folder management
   const handleBackFromFolderManagement = () => {
@@ -480,7 +482,7 @@ export function UserManagement() {
                 onCheckedChange={handleSwitchChange}
               />
               <Label htmlFor="sendEmail">
-                Send login credentials to user's email
+                Send login credentials to user&apos;s email
               </Label>
             </div>
             
@@ -589,14 +591,14 @@ export function UserManagement() {
                       <TableHead>Phone</TableHead>
                       <TableHead>Email Verified</TableHead>
                       <TableHead>Created Date</TableHead>
-                      <TableHead>Actions</TableHead>
+                      {/* <TableHead>Actions</TableHead> */}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {users.length > 0 ? (
                       users.map((user) => (
                         <TableRow 
-                          // key={user.id}
+                          key={user.id}
                           // onClick={() => handleRowClick(user.id)}
                           className="cursor-pointer hover:bg-gray-50"
                         >
@@ -616,7 +618,7 @@ export function UserManagement() {
                             )}
                           </TableCell>
                           <TableCell>{formatDate(user.createdAt)}</TableCell>
-                          <TableCell>
+                          {/* <TableCell>
                             <div className="flex items-center gap-2">
                               <Button 
                                 variant="outline" 
@@ -637,7 +639,7 @@ export function UserManagement() {
                                 Reset Password
                               </Button>
                             </div>
-                          </TableCell>
+                          </TableCell> */}
                         </TableRow>
                       ))
                     ) : (

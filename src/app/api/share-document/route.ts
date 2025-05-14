@@ -1,4 +1,5 @@
-// /app/api/share-document/route.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 

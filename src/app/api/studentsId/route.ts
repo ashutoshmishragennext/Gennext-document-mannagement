@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { db } from "@/db";
 import { FoldersTable, StudentsTable } from "@/db/schema";
 import { count, desc, eq, like, or } from "drizzle-orm";

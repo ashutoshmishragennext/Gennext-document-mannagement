@@ -49,8 +49,8 @@ export async function GET(req: NextRequest) {
         documentType: DocumentsTable.documentTypeId,
         verificationStatus: DocumentsTable.verificationStatus,
         fullName: StudentsTable.fullName,
-        dateOfBirth: StudentsTable.dateOfBirth,
-        nationalId: StudentsTable.nationalId,
+        // dateOfBirth: StudentsTable.dateOfBirth,
+        // nationalId: StudentsTable.nationalId,
       })
       .from(DocumentSearchKeywordsTable)
       .leftJoin(

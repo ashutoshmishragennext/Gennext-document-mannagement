@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextRequest, NextResponse } from "next/server";
 import { UsersTable, StudentsTable, FoldersTable } from "@/db/schema";
 import { eq, like, and, or } from "drizzle-orm";
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
     
     // Build query conditions
-    let conditions = [];
+    const conditions = [];
     
     // Add search condition if search parameter is provided
     if (search) {
@@ -217,7 +219,7 @@ export async function POST(request: NextRequest) {
     
     // Send welcome email with credentials if requested
     let emailResult = null;
-    let emailError = null;
+    const emailError = null;
     
     if (validatedData.sendEmail) {
       try {

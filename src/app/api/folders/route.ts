@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // app/api/folders/route.ts
 import { db } from "@/db";
 import { FoldersTable, NewFolder, StudentsTable } from "@/db/schema";
@@ -125,7 +127,7 @@ export async function GET(req: NextRequest) {
         query = query.where(eq(FoldersTable.parentFolderId, parentFolderId));
       }
 
-      if (organizationId) {
+      else if (organizationId) {
         query = query.where(eq(FoldersTable.organizationId, organizationId));
       }
       

@@ -127,6 +127,8 @@ const FolderLoader: React.FC<{ text?: string }> = ({ text = 'Loading your files'
   useEffect(() => {
     const interval = setInterval(() => {
       setProgress(prev => (prev >= 100 ? 0 : prev + 10));
+      console.log(progress);
+      
     }, 500);
 
     return () => clearInterval(interval);

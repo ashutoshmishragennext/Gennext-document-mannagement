@@ -252,7 +252,7 @@ export default function Dashboard() {
     { id: 'documents', label: 'Documents', icon: <File className="h-5 w-5" /> },
     { id: 'user', label: 'User', icon: <Users className="h-5 w-5" /> },
     //  { id: 'folders', label: 'Folders', icon: <FolderOpen className="h-5 w-5" /> },
-    { id: 'create schema', label: 'Create', icon: <File className="h-5 w-5" /> },
+    // { id: 'create schema', label: 'Create', icon: <File className="h-5 w-5" /> },
     
     // { id: 'folders', label: 'Folders', icon: <FolderOpen className="h-5 w-5" /> },
     // { id: 'activity', label: 'Activity', icon: <Activity className="h-5 w-5" /> },

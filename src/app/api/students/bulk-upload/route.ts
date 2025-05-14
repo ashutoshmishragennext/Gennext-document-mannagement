@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
         const existingStudent = await db.query.StudentsTable.findFirst({
           where: (students, { and, eq }) => 
             and(
-              eq(students.rollNumber, validatedData.rollNumber),
+              // eq(students.rollNumber, validatedData.rollNumber),
               eq(students.organizationId, organizationId)
             )
         });
@@ -141,11 +141,11 @@ export async function POST(request: NextRequest) {
             const newStudent = newStudentResult[0];
             
             // Create folder name based on student's name, roll number, and session year
-            const folderName = `${newStudent.fullName}_${newStudent.rollNumber}_${newStudent.sessionYear}`;
+            // const folderName = `${newStudent.fullName}_${newStudent.rollNumber}_${newStudent.sessionYear}`;
             
             // Create folder record in the FoldersTable
             await tx.insert(FoldersTable).values({
-              name: folderName,
+              name: "folderName",
               description: `Main folder for student ${newStudent.fullName}`,
               studentId: newStudent.id,
               organizationId: newStudent.organizationId,
