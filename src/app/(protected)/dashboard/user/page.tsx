@@ -194,6 +194,7 @@ import {
 import { useCurrentUser } from '@/hooks/auth';
 import Dashboard1 from '@/components/new/Dashboard';
 import { StudentManagement } from '@/components/students/StudentInfoDisplay';
+import FolderLoader from '@/components/new/Loader';
 // import { UserManagement } from '@/components/students/StudentInfoDisplay';
 // import { FolderManagement } from '@/components/new/FolderManagement';
 
@@ -229,7 +230,9 @@ export default function Dashboard() {
   }, [status, router]);
 
   if (status === 'loading') {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    return <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <FolderLoader text="Processing your documents" />
+    </div>;
   }
 
   if (!session) {
@@ -246,7 +249,7 @@ export default function Dashboard() {
 
   // Navigation items for sidebar
   const navItems = [
-    { id: 'documents', label: 'Documents', icon: <File className="h-5 w-5" /> },
+    { id: 'documents', label: 'Dashboard', icon: <File className="h-5 w-5" /> },
     // { id: 'users', label: 'User', icon: <Users className="h-5 w-5" /> },
     { id: 'folders', label: 'Folders', icon: <FolderOpen className="h-5 w-5" /> },
     // { id: 'activity', label: 'Activity', icon: <Activity className="h-5 w-5" /> },

@@ -77,13 +77,15 @@ export async function GET(request: NextRequest) {
     
     // Get users with pagination
     const users = await db
-      .select()
-      .from(UsersTable)
-      .where(whereClause)
-      .limit(limit)
-      .offset(offset)
-      .orderBy(UsersTable.createdAt)
-      .execute();
+  .select()
+  .from(UsersTable)
+  // .innerJoin(StudentsTable, eq(StudentsTable.user, UsersTable.id))
+  .where(whereClause)
+  .orderBy(UsersTable.createdAt)
+  .limit(limit)
+  .offset(offset)
+  .execute();
+
     
     // Don't return password field
     const safeUsers = users.map(user => {

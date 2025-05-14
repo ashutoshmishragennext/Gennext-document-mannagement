@@ -91,7 +91,7 @@ const Dashboard1   = () => {
             </div>
           </div>
           
-          <div className="bg-white rounded-lg shadow p-6 flex items-start space-x-4">
+          {/* <div className="bg-white rounded-lg shadow p-6 flex items-start space-x-4">
             <div className="p-3 rounded-full bg-purple-100">
               <Folder className="h-7 w-7 text-purple-600" />
             </div>
@@ -100,13 +100,13 @@ const Dashboard1   = () => {
               <h2 className="text-lg font-bold text-gray-800">Academic</h2>
               <p className="text-xs text-green-600 mt-1">Most documents stored</p>
             </div>
-          </div>
+          </div> */}
         </div>
         
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Monthly Uploads Chart */}
-          <div className="bg-white rounded-lg shadow p-6">
+          {/* <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Monthly Document Uploads</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -127,10 +127,10 @@ const Dashboard1   = () => {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </div> */}
           
           {/* Document Category Distribution */}
-          <div className="bg-white rounded-lg shadow p-6">
+          {/* <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Document Distribution by Category</h3>
             <div className="h-64 flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
@@ -161,11 +161,11 @@ const Dashboard1   = () => {
                 </PieChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </div> */}
         </div>
         
         {/* Recent Document Uploads Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        {/* <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="p-6 border-b">
             <h3 className="text-lg font-semibold text-gray-800">Recent Document Uploads</h3>
           </div>
@@ -206,7 +206,7 @@ const Dashboard1   = () => {
               </tbody>
             </table>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

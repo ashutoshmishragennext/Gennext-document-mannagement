@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const studentId = searchParams.get("studentId");
+    const ID =searchParams.get("id");
     const parentFolderId = searchParams.get("parentFolderId");
     const organizationId = searchParams.get("organizationId");
     
@@ -135,7 +136,7 @@ export async function GET(req: NextRequest) {
     
     // Format the result if it contains joined student data
     if (!studentId) {
-      const formattedResult = result.map(({ folder, student }) => ({
+      const formattedResult = result.map(({ folder, student }:any) => ({
         id: folder.id,
         name: folder.name,
         description: folder.description,

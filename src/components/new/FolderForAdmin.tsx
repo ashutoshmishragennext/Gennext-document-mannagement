@@ -12,9 +12,7 @@ import {
   Trash2,
   FilePlus,
   Loader2,
-  MoreVertical,
-  File,
-  Share
+  MoreVertical
 } from 'lucide-react';
 import { useCurrentUser } from '@/hooks/auth';
 import { Button } from '@/components/ui/button';
@@ -45,7 +43,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import FolderLoader from './Loader';
 
 interface Folder {
   id: string;
@@ -62,82 +59,56 @@ interface Folder {
   };
 }
 
-interface File {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  folderId: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-const FolderManagement = () => {
+const FolderManagement = ( {user}:any) => {
+    // console.log("userId",usersId);
+    
   const router = useRouter();
   const searchParams = useSearchParams();
+//   const organizationId = searchParams.get('organizationId') || '61e8458a-8f55-40c8-8adc-a78b744063c5';
   const urlParentFolderId = searchParams.get('parentFolderId');
-  
+  // const studentId = searchParams.get('studentId') || 'd32bc0de-540b-40d5-afb3-da864f3f4c33';
+
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [files, setFiles] = useState<Record<string, File[]>>({});
   const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
   const [displayedFolderId, setDisplayedFolderId] = useState<string | null>(urlParentFolderId);
   const [loading, setLoading] = useState(true);
-  const [organizationId, setOrganizationId] = useState<any>();
   const [childrenLoading, setChildrenLoading] = useState<Record<string, boolean>>({});
-  const [filesLoading, setFilesLoading] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [folderPath, setFolderPath] = useState<Folder[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [targetParentId, setTargetParentId] = useState<string | null>(null);
-  const [studentId, setStudentId] = useState<any>();
+  const [studentId ,setStudentId]= useState<any>();
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderDescription, setNewFolderDescription] = useState('');
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [organizationId,setOrganizationId]= useState<any>();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [folderToDelete, setFolderToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [childFolders, setChildFolders] = useState<Record<string, Folder[]>>({});
-  const user = useCurrentUser();
+//   const user = useCurrentUser();
 
-  useEffect(() => {
-    async function fetchStudent() {
-      const response1 = await fetch(`/api/students?id=${user?.id}`);
-      const student = await response1.json();
-      setOrganizationId(student.students[0].organizationId);
-      setStudentId(student.students[0].id);
-    }
+  useEffect(()=>{
+ 
+    
+    async function  fetchStudent() {
+        setLoading(true);
+        const response1 = await fetch(`/api/students?id=${user}`)
+      
+        
+        const student =await response1.json();
+
+        setOrganizationId(student.students[0].organizationId)
+        setStudentId(student.students[0].id);
+        setLoading(false)
+       
+     }
     fetchStudent();
-  }, []);
+  },[])
+  
+  console.log("organization",organizationId);
+  
 
-const fetchFilesForFolder = async (folderId: string) => {
-  try {
-    setFilesLoading(prev => ({ ...prev, [folderId]: true }));
-    const response = await fetch(`/api/documents?organizationId=61e8458a-8f55-40c8-8adc-a78b744063c5&studentId=c1d0bc87-e3c3-4b78-982e-30c980690681&folderId=c6a43475-38c5-471e-889d-6b0380a216b4`);
-    if (!response.ok) throw new Error('Failed to fetch files');
-    const filesData = await response.json();
-    setFiles(prev => ({ ...prev, [folderId]: filesData }));
-  } catch (err) {
-    console.error('Error fetching files:', err);
-  } finally {
-    setFilesLoading(prev => ({ ...prev, [folderId]: false }));
-  }
-};
-const toggleFolderExpansion = async (folderId: string) => {
-  const isExpanded = expandedFolders[folderId];
-  
-  // If we're expanding, fetch both children and files
-  if (!isExpanded) {
-    if (!childFolders[folderId] || childFolders[folderId].length === 0) {
-      await fetchChildFolders(folderId);
-    }
-    await fetchFilesForFolder(folderId);
-  }
-  
-  setExpandedFolders(prev => ({
-    ...prev,
-    [folderId]: !prev[folderId]
-  }));
-};
   // Fetch folders and build path
   const fetchData = useCallback(async () => {
     if (!organizationId) {
@@ -155,19 +126,21 @@ const toggleFolderExpansion = async (folderId: string) => {
       params.append('organizationId', organizationId);
       if (studentId) params.append('studentId', studentId);
       params.append('parentFolderId', displayedFolderId || 'null');
-      
+      setLoading(true)
       const foldersResponse = await fetch(`/api/folders?${params.toString()}`);
       if (!foldersResponse.ok) throw new Error('Failed to fetch folders');
       const foldersData = await foldersResponse.json();
       setFolders(Array.isArray(foldersData) ? foldersData : []);
-
+      setLoading(false)
       // Fetch current folder if displayedFolderId exists
       if (displayedFolderId) {
+        setLoading(true)
         const folderResponse = await fetch(`/api/folders/${displayedFolderId}`);
         if (!folderResponse.ok) throw new Error('Failed to fetch folder details');
         const folderData = await folderResponse.json();
         setCurrentFolder(folderData);
         await buildFolderPath(folderData);
+        setLoading(false)
       } else {
         setCurrentFolder(null);
         setFolderPath([]);
@@ -188,13 +161,14 @@ const toggleFolderExpansion = async (folderId: string) => {
     while (currentParentId) {
       try {
       
-        
+        setLoading(true)
         const response = await fetch(`/api/folders/${currentParentId}`);
         if (!response.ok) break;
         
         const parentFolder = await response.json();
         path.unshift(parentFolder);
         currentParentId = parentFolder.parentFolderId;
+        setLoading(false)
       } catch (err) {
         console.error('Error building folder path:', err);
         break;
@@ -227,7 +201,7 @@ const toggleFolderExpansion = async (folderId: string) => {
       params.append('organizationId', organizationId);
       if (studentId) params.append('studentId', studentId);
       params.append('parentFolderId', folderId);
-
+        setLoading(true)
       const response = await fetch(`/api/folders?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch subfolders');
       
@@ -236,6 +210,7 @@ const toggleFolderExpansion = async (folderId: string) => {
         ...prev,
         [folderId]: Array.isArray(data) ? data : []
       }));
+      setLoading(false)
     } catch (err) {
       console.error('Error fetching child folders:', err);
     } finally {
@@ -259,7 +234,7 @@ const toggleFolderExpansion = async (folderId: string) => {
         parentFolderId: targetParentId || displayedFolderId || null,
         studentId: studentId || null,
         organizationId: organizationId,
-        createdBy: user?.id, 
+        createdBy: user, 
       };
       
       const response = await fetch('/api/folders', {
@@ -463,52 +438,19 @@ const toggleFolderExpansion = async (folderId: string) => {
     router.push(`/upload?studentId=${studentId}&folderId=${folderId}`);
   };
 
-  // const toggleFolderExpansion = async (folderId: string) => {
-  //   const isExpanded = expandedFolders[folderId];
+  const toggleFolderExpansion = async (folderId: string) => {
+    const isExpanded = expandedFolders[folderId];
     
-  //   // If we're expanding and don't have children loaded yet, fetch them
-  //   if (!isExpanded && (!childFolders[folderId] || childFolders[folderId].length === 0)) {
-  //     await fetchChildFolders(folderId);
-  //   }
+    // If we're expanding and don't have children loaded yet, fetch them
+    if (!isExpanded && (!childFolders[folderId] || childFolders[folderId].length === 0)) {
+      await fetchChildFolders(folderId);
+    }
     
-  //   setExpandedFolders(prev => ({
-  //     ...prev,
-  //     [folderId]: !prev[folderId]
-  //   }));
-  // };
-  const shareFolder = async (folderId: string) => {
-  try {
-    // This would be your API endpoint to generate a shareable link
-    const response = await fetch(`/api/folders/${folderId}/share`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        studentId,
-        organizationId
-      }),
-    });
-    
-    if (!response.ok) throw new Error('Failed to share folder');
-    
-    const { shareLink } = await response.json();
-    
-    // Copy to clipboard
-    navigator.clipboard.writeText(shareLink);
-    alert('Shareable link copied to clipboard!');
-  } catch (err) {
-    console.error('Error sharing folder:', err);
-    alert('Failed to share folder');
-  }
-};
-const formatFileSize = (bytes: number) => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
+    setExpandedFolders(prev => ({
+      ...prev,
+      [folderId]: !prev[folderId]
+    }));
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -527,116 +469,88 @@ const formatFileSize = (bytes: number) => {
   };
 
   // Render folder tree recursively
-const renderFolderTree = (folder: Folder, depth = 0) => {
-  const hasChildren = folder._count?.children && folder._count.children > 0;
-  const isExpanded = expandedFolders[folder.id];
-  const childrenItems = childFolders[folder.id] || [];
-  const folderFiles = files[folder.id] || [];
+  const renderFolderTree = (folder: Folder, depth = 0) => {
+    const hasChildren = folder._count?.children && folder._count.children > 0;
+    const isExpanded = expandedFolders[folder.id];
+    const childrenItems = childFolders[folder.id] || [];
 
-  return (
-    <div key={folder.id} className="ml-4">
-      <div 
-        className={`flex items-center py-2 px-3 rounded-md hover:bg-gray-100 ${depth === 0 ? 'font-medium' : ''}`}
-      >
-        {hasChildren ? (
-          <button 
-            className="mr-2 text-muted-foreground"
-            onClick={() => toggleFolderExpansion(folder.id)}
-          >
-            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          </button>
-        ) : (
-          <div className="w-6 mr-2"></div>
-        )}
-        <FolderOpen 
-          className="h-5 w-5 text-primary mr-2 cursor-pointer"
-          onClick={() => navigateToFolder(folder.id, false)}
-        />
-        <span 
-          className="flex-1 truncate cursor-pointer"
-          onClick={() => navigateToFolder(folder.id, false)}
+    return (
+      <div key={folder.id} className="ml-4">
+        <div 
+          className={`flex items-center py-2 px-3 rounded-md hover:bg-gray-100 ${depth === 0 ? 'font-medium' : ''}`}
         >
-          {folder.name}
-        </span>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-6 w-6">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => viewFiles(folder.id)}>
-              <FilePlus className="mr-2 h-4 w-4" />
-              View Files
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigateToFolder(folder.id, false)}>
-              <FolderOpen className="mr-2 h-4 w-4" />
-              Open Folder
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleAddSubfolder(folder.id)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Subfolder
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => shareFolder(folder.id)}>
-              <Share className="mr-2 h-4 w-4" />
-              Share
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              className="text-red-600"
-              onClick={() => {
-                setFolderToDelete(folder.id);
-                setDeleteDialogOpen(true);
-              }}
+          {hasChildren ? (
+            <button 
+              className="mr-2 text-muted-foreground"
+              onClick={() => toggleFolderExpansion(folder.id)}
             >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      
-      {isExpanded && (
-        <div className="border-l-2 border-gray-200 ml-3 pl-2">
-          {/* Show files first */}
-          {filesLoading[folder.id] ? (
-            <div className="flex items-center py-2 px-3">
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              <span className="text-sm text-muted-foreground">Loading files...</span>
-            </div>
-          ) : folderFiles.length > 0 ? (
-            folderFiles.map(file => (
-              <div key={file.id} className="flex items-center py-2 px-3 text-sm">
-                <File className="h-4 w-4 text-muted-foreground mr-2" />
-                <span className="truncate">{file.name}</span>
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {formatFileSize(file.size)}
-                </span>
-              </div>
-            ))
+              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
           ) : (
-            <div className="flex items-center py-2 px-3 text-sm text-muted-foreground">
-              No files in this folder
-            </div>
+            <div className="w-6 mr-2"></div>
           )}
-
-          {/* Then show subfolders */}
-          {childrenLoading[folder.id] ? (
-            <div className="flex items-center py-2 px-3">
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              <span className="text-sm text-muted-foreground">Loading subfolders...</span>
-            </div>
-          ) : childrenItems.length > 0 ? (
-            childrenItems.map(child => renderFolderTree(child, depth + 1))
-          ) : (
-            <div className="flex items-center py-2 px-3 text-sm text-muted-foreground">
-              No subfolders
-            </div>
-          )}
+          <FolderOpen 
+            className="h-5 w-5 text-primary mr-2 cursor-pointer"
+            onClick={() => navigateToFolder(folder.id, false)} // In-place navigation (no URL update)
+          />
+          <span 
+            className="flex-1 truncate cursor-pointer"
+            onClick={() => navigateToFolder(folder.id, false)} // In-place navigation (no URL update)
+          >
+            {folder.name}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-6 w-6">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => viewFiles(folder.id)}>
+                <FilePlus className="mr-2 h-4 w-4" />
+                View Files
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigateToFolder(folder.id, false)}> {/* In-place navigation */}
+                <FolderOpen className="mr-2 h-4 w-4" />
+                Open Folder
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleAddSubfolder(folder.id)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Subfolder
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="text-red-600"
+                onClick={() => {
+                  setFolderToDelete(folder.id);
+                  setDeleteDialogOpen(true);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      )}
-    </div>
-  );
-};
+        
+        {isExpanded && (
+          <div className="border-l-2 border-gray-200 ml-3 pl-2">
+            {childrenLoading[folder.id] ? (
+              <div className="flex items-center py-2 px-3">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm text-muted-foreground">Loading...</span>
+              </div>
+            ) : childrenItems.length > 0 ? (
+              childrenItems.map(child => renderFolderTree(child, depth + 1))
+            ) : (
+              <div className="flex items-center py-2 px-3 text-sm text-muted-foreground">
+                No subfolders
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6 p-4">
@@ -645,6 +559,7 @@ const renderFolderTree = (folder: Folder, depth = 0) => {
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold tracking-tight">
             {currentFolder ? currentFolder.name : 'My Folders'}
+            
           </h1>
           <Button onClick={() => {
             setTargetParentId(null);

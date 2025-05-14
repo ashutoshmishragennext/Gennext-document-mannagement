@@ -9,7 +9,6 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const organizationId = searchParams.get("organizationId");
     const user= searchParams.get("id");
-    const student =searchParams.get("student");
     const createdBy = searchParams.get("createdBy");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
@@ -29,9 +28,6 @@ export async function GET(request: NextRequest) {
     // Add organization filter if provided
     if (organizationId) {
       query = query.where(eq(StudentsTable.organizationId, organizationId));
-    }
-    if(student){
-      query =query.where(eq(StudentsTable.id,student))
     }
     if(user){
      query = query.where(eq(StudentsTable.user,user)); 
@@ -80,7 +76,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       {
-        students:students,
+        students:students[0].id,
         pagination: {
           total: totalStudents,
           totalPages,

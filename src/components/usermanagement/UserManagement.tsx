@@ -11,7 +11,11 @@ import { useEffect, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
+import FolderManagement from "../new/FolderForAdmin";
 // import { toast } from "@/components/ui/use-toast";
+
+// Import FolderManagement component (assuming it's in the correct path)
+// import { FolderManagement } from "@/components/folder-management";
 
 // Define the user interface to match the API response
 interface User {
@@ -66,9 +70,12 @@ export function UserManagement() {
   const router = useRouter();
   const user = useCurrentUser();
   const role = useCurrentRole();
-  console.log("users",users);
-  
-  
+  console.log("users", users);
+
+  // New state for selected user and showing folder management
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [showFolderManagement, setShowFolderManagement] = useState(false);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -81,7 +88,7 @@ export function UserManagement() {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       let url = `/api/users?page=${page}&limit=${pageSize}`;
       
       // Add search parameter if provided
@@ -122,7 +129,7 @@ export function UserManagement() {
   const fetchOrganizations = async () => {
     try {
       const response = await fetch('/api/organizations');
-      
+
       if (!response.ok) {
         throw new Error("Failed to fetch organizations");
       }
@@ -185,13 +192,28 @@ export function UserManagement() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Handle row click to navigate to FolderManagement
+  const handleRowClick = (userId: string) => {
+    setSelectedUserId(userId);
+    setShowFolderManagement(true);
+  };
+
+  // Handle back button from folder management
+  const handleBackFromFolderManagement = () => {
+    setShowFolderManagement(false);
+    setSelectedUserId(null);
+  };
+
   // Handle sending welcome email with credentials
-  const handleSendCredentials = async (userId: string) => {
+  const handleSendCredentials = async (userId: string, e: React.MouseEvent) => {
+    // Stop propagation to prevent row click
+    e.stopPropagation();
+    
     try {
       const response = await fetch(`/api/users/${userId}/send-credentials`, {
         method: 'POST',
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to send credentials');
       }
@@ -213,12 +235,15 @@ export function UserManagement() {
   };
 
   // Handle password reset
-  const handleResetPassword = async (userId: string) => {
+  const handleResetPassword = async (userId: string, e: React.MouseEvent) => {
+    // Stop propagation to prevent row click
+    e.stopPropagation();
+    
     try {
       const response = await fetch(`/api/users/${userId}/reset-password`, {
         method: 'POST',
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to reset password');
       }
@@ -244,12 +269,12 @@ export function UserManagement() {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
     let password = '';
     const length = 12;
-    
+
     for (let i = 0; i < length; i++) {
       const randomIndex = Math.floor(Math.random() * characters.length);
       password += characters.charAt(randomIndex);
     }
-    
+
     return password;
   };
 
@@ -260,7 +285,7 @@ export function UserManagement() {
       if (!formData.password) {
         formData.password = generateRandomPassword();
       }
-      
+
       const response = await fetch(`/api/users`, {
         method: 'POST',
         headers: {
@@ -466,6 +491,27 @@ export function UserManagement() {
     );
   };
 
+  // If folder management is shown, render it with the selected user ID
+  if (showFolderManagement && selectedUserId) {
+    return (
+      <div>
+        <div className="flex items-center mb-6">
+          <Button 
+            variant="outline" 
+            onClick={handleBackFromFolderManagement}
+            className="flex items-center gap-2 mr-4"
+          >
+            <ArrowLeft size={16} />
+            Back to Users
+          </Button>
+          <h1 className="text-2xl font-bold">Folder Management</h1>
+        </div>
+        
+        <FolderManagement user={selectedUserId} />
+      </div>
+    );
+  }
+
   return (
     <div>
       {!showAddForm ? (
@@ -478,8 +524,8 @@ export function UserManagement() {
                 {role === "ADMIN" ? "Admin View" : "User View"}
               </div>
               {/* Show Add User button for all users or just for ADMIN role */}
-              <Button 
-                onClick={() => setShowAddForm(true)} 
+              <Button
+                onClick={() => setShowAddForm(true)}
                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors shadow-sm"
               >
                 <Plus size={16} />
@@ -500,7 +546,6 @@ export function UserManagement() {
                     className="pl-10"
                   />
                 </div>
-                
               </div>
               
               {role === "ADMIN" && organizations && organizations.length > 0 && (
@@ -550,7 +595,11 @@ export function UserManagement() {
                   <TableBody>
                     {users.length > 0 ? (
                       users.map((user) => (
-                        <TableRow key={user.id}>
+                        <TableRow 
+                          // key={user.id}
+                          // onClick={() => handleRowClick(user.id)}
+                          className="cursor-pointer hover:bg-gray-50"
+                        >
                           <TableCell className="font-medium">{user.name}</TableCell>
                           <TableCell>{user.email}</TableCell>
                           <TableCell>
@@ -572,7 +621,7 @@ export function UserManagement() {
                               <Button 
                                 variant="outline" 
                                 size="sm" 
-                                onClick={() => handleSendCredentials(user.id)}
+                                onClick={(e) => handleSendCredentials(user.id, e)}
                                 title="Send Login Credentials"
                               >
                                 <Mail size={14} className="mr-1" />
@@ -581,7 +630,7 @@ export function UserManagement() {
                               <Button 
                                 variant="outline" 
                                 size="sm" 
-                                onClick={() => handleResetPassword(user.id)}
+                                onClick={(e) => handleResetPassword(user.id, e)}
                                 title="Reset Password"
                               >
                                 <KeyRound size={14} className="mr-1" />

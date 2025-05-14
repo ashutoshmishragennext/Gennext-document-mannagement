@@ -1,0 +1,1 @@
+ALTER TABLE "students" ALTER COLUMN "user" SET DATA TYPE uuid;

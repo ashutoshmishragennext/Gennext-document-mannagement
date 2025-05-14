@@ -3,13 +3,19 @@
 "use client";
 import {
   ArrowLeft,
+  Check,
+  Copy,
   FileText,
 
   LogOut,
+  Mail,
   Settings,
+  Share2,
   UploadCloud,
   X
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 import { signOut } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -107,6 +113,11 @@ const DocumentManagementDashboard = () => {
   const [studentDocTypes, setStudentDocTypes] = useState<studentDocTypes[]>([]);
   const [folder, setFolder] = useState<any>([]);
   const [folderId,setFolderId]= useState<any>([]);
+  const [copied, setCopied] = useState(false);
+const [shareDialogOpen, setShareDialogOpen] = useState(false);
+const [shareUrl, setShareUrl] = useState('');
+const [shareDocumentName, setShareDocumentName] = useState('');
+const [shareEmail, setShareEmail] = useState('');
  
   // Bulk upload states
   const [bulkFiles, setBulkFiles] = useState<BulkUploadFile[]>([]);
@@ -116,10 +127,11 @@ const DocumentManagementDashboard = () => {
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [organizationId,setOrganizationId]= useState<any>();
 
   const searchParams = useSearchParams();
   const user = useCurrentUser();
-  const organizationId = "61e8458a-8f55-40c8-8adc-a78b744063c5"; // Example organization ID
+  // const organizationId = "61e8458a-8f55-40c8-8adc-a78b744063c5"; // Example organization ID
 
   const { startUpload } = useUploadThing("docUploader");
 
@@ -127,24 +139,97 @@ const DocumentManagementDashboard = () => {
   useEffect(() => {
     const studentId = searchParams.get("studentId");
     const folderId = searchParams.get("folderId");
+    
     if(folderId){
       setFolderId(folderId);
     }
     if (studentId) {
       setSelectedIndividual(studentId);
+          fetchStudent(studentId);
     }
   }, [searchParams]);
 
   useEffect(() => {
-    if (selectedIndividual) {
+    if (selectedIndividual && organizationId) {
       fetchUserDocuments(selectedIndividual);
     }
-  }, [selectedIndividual]);
-
+  }, [selectedIndividual,organizationId]);
+  async function  fetchStudent (studentId:string) {
+      const response= await fetch(`/api/students?student=${studentId}`)
+      const organization =await response.json();
+      console.log("orrrrrrrrrrr",organization.students[0].organizationId);
+      
+      setOrganizationId(organization.students[0].organizationId)
+    }
+ 
   // Fetch data on component mount
   useEffect(() => {
+    
     fetchDocumentTypes();
   }, []);
+
+  const handleCopyLink = (url: string) => {
+  navigator.clipboard.writeText(url);
+  setCopied(true);
+  setTimeout(() => setCopied(false), 2000);
+  toast({
+    title: "Success",
+    description: "Link copied to clipboard",
+  });
+};
+const openShareDialog = () => {
+  const baseUrl = window.location.origin;
+   setShareDialogOpen(true);
+  const shareableUrl = `${baseUrl}/upload?organizationId=${organizationId}&studentId=${selectedIndividual}&folderId=${folderId}`;
+  setShareUrl(shareableUrl);
+  // setShareDocumentName(doc.filename);
+ 
+};
+const handleShareViaEmail = async () => {
+  if (!shareEmail) {
+    toast({
+      title: "Error",
+      description: "Please enter an email address",
+      variant: "destructive"
+    });
+    return;
+  }
+  
+  try {
+    const shareData = {
+      email: shareEmail,
+      documentName: shareDocumentName,
+      documentUrl: shareUrl,
+      message: `The document "${shareDocumentName}" has been shared with you.`
+    };
+    
+    const res = await fetch('/api/share-document', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(shareData)
+    });
+    
+    if (!res.ok) {
+      throw new Error('Failed to share document');
+    }
+    
+    toast({
+      title: "Success",
+      description: `Document shared with ${shareEmail}`,
+    });
+    setShareEmail('');
+    setShareDialogOpen(false);
+  } catch (error) {
+    console.error('Error sharing document:', error);
+    toast({
+      title: "Error",
+      description: "Failed to share document",
+      variant: "destructive"
+    });
+  }
+};
 
   const studentsDoctype = async () => {
     try {
@@ -167,11 +252,12 @@ const DocumentManagementDashboard = () => {
       });
     }
   };
+  
 
   useEffect(() => {
     const studentsFolder = async () => {
       try {
-        const res = await fetch(`/api/folders?StudentId=${selectedIndividual}`);
+        const res = await fetch(`/api/folders?studentId=${selectedIndividual}`);
         if (!res.ok) throw new Error("Failed to fetch document types");
         const data = await res.json();
         setFolder(data[0].id);
@@ -277,7 +363,7 @@ const DocumentManagementDashboard = () => {
               uploadThingUrl: uploadedUrl,
               filename: file.name,
               metadata: {},
-              folderId: folder,
+              folderId: folderId,
               organizationId: organizationId,
               uploadedBy: user?.id || "unknown",
               verificationStatus: false, // Set to false until tagged
@@ -640,6 +726,7 @@ const DocumentManagementDashboard = () => {
               <span>Back</span>
             </button>
             </Link>
+            <div className="flex space-x-2">
         <Button
           variant="default"
           className="flex items-center gap-2"
@@ -658,6 +745,24 @@ const DocumentManagementDashboard = () => {
             disabled={!selectedIndividual || uploading}
           />
         </Button>
+        <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => openShareDialog()}
+        >
+          <Share2 className="h-4 w-4" />
+        
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Share document</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+  </div>
       </div>
 
       {/* Selected Files Preview (when bulk uploading) */}
@@ -745,6 +850,7 @@ const DocumentManagementDashboard = () => {
             <Card
               key={doc.id}
               className="overflow-hidden hover:shadow-md transition-shadow"
+              onClick={() => openDocumentPreview(doc.uploadThingUrl)}
             >
               <div className="p-5">
                 <div className="flex items-center justify-between mb-4">
@@ -755,37 +861,86 @@ const DocumentManagementDashboard = () => {
                 <h3 className="font-medium text-lg mb-1 truncate">
                   {doc.filename}
                 </h3>
-                <div className="flex items-center mb-3">
-                  <div className={`h-2 w-2 rounded-full ${doc.documentTypeId ? "bg-green-500" : "bg-yellow-500"} mr-2`}></div>
-                  <span className="text-xs text-gray-500">
+                {/* <div className="flex items-center mb-3"> */}
+{/* <div className={`h-2 w-2 rounded-full ${doc.documentTypeId ? "bg-green-500" : "bg-yellow-500"} mr-2`}></div> */}
+                  {/* <span className="text-xs text-gray-500">
                     {doc.documentTypeId ? "Tagged" : "Untagged"}
-                  </span>
-                </div>
+                  </span> */}
+                {/* </div> */}
                 <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => openEditDialog(doc)}
-                  >
-                    {doc.documentTypeId ? "Edit" : "Add Tags"}
-                  </Button>
+  {/* <Button
+    variant="outline"
+    size="sm"
+    className="flex-1"
+    onClick={() => openEditDialog(doc)}
+  >
+    {doc.documentTypeId ? "Edit" : "Add Tags"}
+  </Button> */}
 
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => openDocumentPreview(doc.uploadThingUrl)}
-                  >
-                    View
-                  </Button>
-                </div>
+  {/* <Button
+    variant="default"
+    size="sm"
+    className="flex-1"
+    onClick={() => openDocumentPreview(doc.uploadThingUrl)}
+  >
+    View
+  </Button> */}
+  
+  
+</div>
               </div>
             </Card>
           ))}
         </div>
       )}
 
+
+ <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+  <DialogContent className="max-w-md">
+    <DialogHeader>
+      <DialogTitle>Share Folder</DialogTitle>
+    </DialogHeader>
+    <div className="space-y-4 py-4">
+      <div>
+        <Label htmlFor="document-link">Document Link</Label>
+        <div className="flex mt-1">
+          <Input 
+            id="document-link" 
+            value={shareUrl} 
+            readOnly 
+            className="flex-1 rounded-r-none"
+          />
+          <Button 
+            className="rounded-l-none" 
+            onClick={() => handleCopyLink(shareUrl)}
+          >
+            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          </Button>
+        </div>
+      </div>
+      
+      <div className="border-t pt-4">
+        <Label htmlFor="share-email">Share via Email</Label>
+        <div className="flex mt-1">
+          <Input 
+            id="share-email" 
+            type="email" 
+            placeholder="recipient@example.com" 
+            value={shareEmail}
+            onChange={(e) => setShareEmail(e.target.value)}
+            className="flex-1 rounded-r-none"
+          />
+          <Button 
+            className="rounded-l-none"
+            onClick={handleShareViaEmail}
+          >
+            <Mail className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  </DialogContent>
+</Dialog>
       {/* Document Tagging Dialog */}
       <Dialog
         open={tagDialogOpen}
@@ -805,6 +960,7 @@ const DocumentManagementDashboard = () => {
                 : `Tag Document: ${currentTaggingFile?.name}`}
             </DialogTitle>
           </DialogHeader>
+         
           <form onSubmit={handleTagDocument}>
             <div className="grid gap-4 py-4">
               {/* Preview */}
