@@ -7,13 +7,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useCurrentUser } from "@/hooks/auth";
 import { useCurrentRole } from "@/hooks/auth";
 import { format } from "date-fns";
-import { ArrowLeft, Download, Plus, Search, Mail, ChevronLeft, ChevronRight, KeyRound } from "lucide-react";
+import { ArrowLeft, Download, Plus, Search, Mail, ChevronLeft, ChevronRight, KeyRound, X, Loader2 } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import FolderManagement from "../new/FolderForAdmin";
+import { FormEvent, KeyboardEvent } from 'react';
+import { Textarea } from "../ui/textarea";
+
 // import { toast } from "@/components/ui/use-toast";
 
 // Import FolderManagement component (assuming it's in the correct path)
@@ -49,6 +52,25 @@ interface UsersResponse {
   pagination: Pagination;
 }
 
+interface FormData {
+  name: string;
+  description: string;
+}
+
+interface OrganizationResponse {
+  id: string;
+  name: string;
+  code: string;
+  description: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ApiErrorResponse {
+  error: string;
+}
+
 // Interface for organization
 interface Organization {
   id: string;
@@ -70,9 +92,15 @@ export function UserManagement() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const router = useRouter();
+  const [showPopup, setShowPopup] = useState(false);
   const user = useCurrentUser();
   const role = useCurrentRole();
-  console.log("users", users);
+    const [success, setSuccess] = useState('');
+    
+  const [loading, setLoading] = useState(false);
+  // const [error, setError] = useState('');
+
+  // console.log("users", users);
 
   // New state for selected user and showing folder management
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -172,6 +200,8 @@ export function UserManagement() {
     fetchOrganizations();
   }, [organizationId]);
 
+
+  
   // Handle pagination
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages || page === currentPage) return;
@@ -235,6 +265,10 @@ export function UserManagement() {
       });
     }
   };
+
+  
+
+
 
   // Handle password reset
   const handleResetPassword = async (userId: string, e: React.MouseEvent) => {
@@ -334,6 +368,7 @@ export function UserManagement() {
     }
   };
 
+
   // Form for adding users
   const AddUserForm = () => {
     const [formData, setFormData] = useState({
@@ -346,6 +381,10 @@ export function UserManagement() {
       sendEmail: true,
     });
 
+    const [formData2, setFormData2] = useState({
+    name: '',
+    description: ''
+  });
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       setFormData({
         ...formData,
@@ -372,6 +411,84 @@ export function UserManagement() {
       handleCreateUser(formData);
     };
 
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData2(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }));
+  };
+
+  
+   const closePopup = () => {
+    setShowPopup(false);
+    setFormData2({ name: '', description: '' });
+    setError('');
+    setSuccess('');
+  };
+
+  
+const showPopUpForm = () => {
+    setShowPopup(true);
+    setError('');
+    setSuccess('');
+  };
+
+  const handleSubmit2 = async (e: FormEvent<HTMLButtonElement>) => {
+  e.preventDefault();
+  
+  if (!formData2.name.trim()) {
+    setError('Organization name is required');
+    return;
+  }
+
+  setLoading(true);
+  setError('');
+
+  try {
+    const response = await fetch('/api/organizationcreation', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: formData2.name.trim(),
+        description: formData2.description.trim() || undefined
+      }),
+    });
+
+    const data: OrganizationResponse | ApiErrorResponse = await response.json();
+
+    if (!response.ok) {
+      throw new Error((data as ApiErrorResponse).error || 'Failed to create organization');
+    }
+
+    const organization = data as OrganizationResponse;
+    setSuccess(`Organization "${organization.name}" created successfully with code: ${organization.code}`);
+    setFormData2({ name: '', description: '' });
+    
+    // Close popup after 2 seconds
+    setTimeout(() => {
+      closePopup();
+    }, 2000);
+
+    fetchOrganizations();
+
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    handleSubmit2(e as any); // Type assertion needed due to event type mismatch
+  }
+};
+    
+  
+
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -385,6 +502,104 @@ export function UserManagement() {
             Back to List
           </Button>
         </div>
+
+        
+    {/* Popup Modal */}
+    {showPopup && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 relative">
+          {/* Close Button */}
+          <button
+            onClick={closePopup}
+            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+            disabled={loading}
+          >
+            <X size={20} />
+          </button>
+
+          {/* Header */}
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            Create New Organization
+          </h2>
+
+          {/* Success Message */}
+          {success && (
+            <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+              {success}
+            </div>
+          )}
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {error}
+            </div>
+          )}
+
+          {/* Form Fields */}
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                Organization Name *
+              </label>
+              <Input
+                type="text"
+                id="name"
+                name="name"
+                value={formData2.name}
+                onChange={handleInputChange}
+                onKeyPress={handleKeyPress}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter organization name"
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <Textarea
+                id="description"
+                name="description"
+                value={formData2.description}
+                onChange={handleInputChange}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                placeholder="Enter organization description (optional)"
+                disabled={loading}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={closePopup}
+                className="flex-1 px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+                disabled={loading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit2}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                disabled={loading || !formData2.name.trim()}
+              >
+                {loading && <Loader2 size={16} className="animate-spin" />}
+                {loading ? 'Creating...' : 'Create Organization'}
+              </button>
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-500 mt-3">
+            * Organization code will be auto-generated from the name
+          </p>
+        </div>
+      </div>
+    )}
+
+        
 
         <div className="border rounded-lg p-6 max-w-2xl">
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -439,6 +654,7 @@ export function UserManagement() {
             
             <div className="space-y-2">
               <Label htmlFor="organizationId">Organization *</Label>
+              <div className=" flex gap-4 ">
               <Select 
                 value={formData.organizationId} 
                 onValueChange={(value) => handleSelectChange("organizationId", value)}
@@ -458,6 +674,8 @@ export function UserManagement() {
                   )}
                 </SelectContent>
               </Select>
+              <div onClick={showPopUpForm} className=" cursor-pointer -mt-1 flex gap-2 bg-slate-800 rounded-lg text-white p-2">Add {<Plus className=" bg-white rounded-full text-black"/>}</div>
+              </div>
             </div>
             
             <div className="space-y-2">
@@ -506,8 +724,11 @@ export function UserManagement() {
             <ArrowLeft size={16} />
             Back to Users
           </Button>
+          
           <h1 className="text-2xl font-bold">Folder Management</h1>
         </div>
+
+        
         
         <FolderManagement user={selectedUserId} />
       </div>
