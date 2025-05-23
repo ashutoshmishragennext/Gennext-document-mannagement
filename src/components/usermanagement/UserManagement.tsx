@@ -92,10 +92,8 @@ export function UserManagement() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const router = useRouter();
-  const [showPopup, setShowPopup] = useState(false);
   const user = useCurrentUser();
   const role = useCurrentRole();
-    const [success, setSuccess] = useState('');
     
   const [loading, setLoading] = useState(false);
   // const [error, setError] = useState('');
@@ -381,6 +379,10 @@ export function UserManagement() {
       sendEmail: true,
     });
 
+      const [showPopup, setShowPopup] = useState(false);
+    const [success, setSuccess] = useState('');
+
+
     const [formData2, setFormData2] = useState({
     name: '',
     description: ''
@@ -431,6 +433,45 @@ const showPopUpForm = () => {
     setShowPopup(true);
     setError('');
     setSuccess('');
+  };
+
+  const fetchOrganizations = async () => {
+    try {
+      const response = await fetch('/api/organizations');
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch organizations");
+      }
+      
+      const data = await response.json();
+      
+      // Check if data is an array directly (as per your data format)
+      if (Array.isArray(data)) {
+        setOrganizations(data);
+        
+        // Set default organization if there are any
+        if (data.length > 0 && !organizationId) {
+          setOrganizationId(data[0].id);
+        }
+      } 
+      // Also handle the case where it might be wrapped in an 'organizations' property
+      else if (data && data.organizations && Array.isArray(data.organizations)) {
+        setOrganizations(data.organizations);
+        
+        // Set default organization if there are any
+        if (data.organizations.length > 0 && !organizationId) {
+          setOrganizationId(data.organizations[0].id);
+        }
+      } else {
+        // Set empty array if data is not in expected format
+        setOrganizations([]);
+        console.error("Organizations data is undefined or improperly formatted:", data);
+      }
+    } catch (error: any) {
+      console.error("Error fetching organizations:", error);
+      // Set empty array to prevent map errors
+      setOrganizations([]);
+    }
   };
 
   const handleSubmit2 = async (e: FormEvent<HTMLButtonElement>) => {
@@ -631,6 +672,7 @@ const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
               <Input 
                 id="phone" 
                 name="phone"
+                type="number"
                 value={formData.phone || ""}
                 onChange={handleChange}
               />
