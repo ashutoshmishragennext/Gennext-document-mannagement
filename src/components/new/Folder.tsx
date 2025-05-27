@@ -16,7 +16,8 @@ import {
   Loader2,
   MoreVertical,
   File,
-  Share
+  Share,
+  FileIcon
 } from 'lucide-react';
 import { useCurrentUser } from '@/hooks/auth';
 import { Button } from '@/components/ui/button';
@@ -59,6 +60,7 @@ interface Folder {
   createdAt: string;
   updatedAt: string;
   children?: Folder[];
+  files ?: File[];
   _count?: {
     children: number;
   };
@@ -110,7 +112,7 @@ const FolderManagement = () => {
     }
     fetchStudent();
   }, []);
-
+// For Initial only
 const fetchFilesForFolder = async (folderId: string) => {
   try {
     setFilesLoading(prev => ({ ...prev, [folderId]: true }));
@@ -161,6 +163,9 @@ const toggleFolderExpansion = async (folderId: string) => {
       const foldersResponse = await fetch(`/api/folders?${params.toString()}`);
       if (!foldersResponse.ok) throw new Error('Failed to fetch folders');
       const foldersData = await foldersResponse.json();
+
+      console.log("Folders Data" ,Array.isArray(foldersData) ? foldersData : [] );
+      
       setFolders(Array.isArray(foldersData) ? foldersData : []);
 
       // Fetch current folder if displayedFolderId exists
@@ -739,6 +744,12 @@ const renderFolderTree = (folder: Folder, depth = 0) => {
             
             {folders.filter(f => f.parentFolderId === (currentFolder?.id || null)).map(folder => 
               renderFolderTree(folder)
+            )}
+
+            {folders[0].files && folders[0].files.length > 0 && (
+              <div onClick={() => viewFiles(currentFolder ? currentFolder?.id : "")} className=' text-md font-normal flex gap-4 cursor-pointer py-4 pl-4 sm:pl-8 md:pl-12 lg:pl-20 hover:bg-gray-100  rounded-2xl w-full  '>
+                <FileIcon className=' w-5 h-5'/> Files of ({currentFolder?.name})
+              </div>
             )}
           </div>
         )}

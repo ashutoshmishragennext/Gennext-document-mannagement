@@ -117,13 +117,6 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    // Verify user is authenticated
-    // const session = await auth();
-    // if (!session || !session.user) {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
-
-    // Get query parameters
     const url = new URL(req.url);
     const studentId = url.searchParams.get("studentId");
     const folderId = url.searchParams.get("folderId");
