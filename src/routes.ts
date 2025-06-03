@@ -9,7 +9,7 @@ export const apiAuthPrefix: string = "/api/auth";
 export const publicRoutes: string[] = ["/", "/auth/verify-email","/upload"];
 
 // APIs which are accessible to all.
-export const publicApis: string[] = ["/api/uploadthing"];
+export const publicApis: string[] = ["/api/uploadthing","/api/documents","/api/students","/api/share-document","/api/studentdoctypes","/api/documentstype","/api/document-keywords","/api/folders"];
 
 // Routes which are used for authentication.
 export const authRoutes: string[] = [
